@@ -378,13 +378,6 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 ---
 
-## Contact
-
-**Shejal Yadav** — 2023BEE031 — +91 73556 62695
-
-Project Link: [https://github.com/Mooosiee/LipReader](https://github.com/Mooosiee/LipReader)
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
 
