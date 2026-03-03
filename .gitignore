@@ -1,0 +1,14 @@
+data/
+processed_data/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env/
+.venv/
+*.h5
+logs/
+.DS_Store

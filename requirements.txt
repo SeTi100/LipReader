@@ -1,0 +1,21 @@
+# Lip Reader Project Requirements
+# Compatible with Windows, Linux, and Mac
+# Install with: pip install -r requirements.txt
+
+# Core ML (use flexible versions for cross-platform compatibility)
+tensorflow>=2.15.0
+numpy>=1.24.0,<2.0.0  # TensorFlow needs numpy 1.x
+scikit-learn>=1.3.0
+
+# Computer Vision
+opencv-python>=4.8.0
+dlib-bin==19.24.6  # Windows pre-compiled
+
+# Visualization
+matplotlib>=3.8.0
+
+# Utils
+tqdm>=4.65.0
+
+# Note: For Linux/Mac users, replace dlib-bin with:
+# dlib>=19.24.0 (requires cmake and compiler)
