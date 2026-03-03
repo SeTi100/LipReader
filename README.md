@@ -16,7 +16,7 @@
     <a href="https://github.com/Mooosiee/LipReader"><strong>Explore the Repo »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/Mooosiee/LipReader">View Demo</a>
+    <a href="https://drive.google.com/file/d/1HD3F0ZSiEbgmdp9b00sKD2520Oel4I-t/view?usp=sharing">View Demo</a>
     ·
     <a href="https://github.com/Mooosiee/LipReader/issues/new?labels=bug">Report Bug</a>
     ·
