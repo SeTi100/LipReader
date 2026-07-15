@@ -123,12 +123,15 @@ Dense(128, ReLU) → Dropout(0.5) → Softmax Output
 
 ```
 LipReader/
+├── scripts/
+│   └── train_one_click.py            # One-click end-to-end training CLI
 ├── src/
 │   ├── collection.py               # Webcam-based data collection with Dlib landmarks
 │   ├── preprocess.py               # Multi-step image preprocessing pipeline
 │   ├── mobilenet_lstm_model.py     # Model architecture definition
 │   ├── train_mobilenet_LSTM.py     # Training script with augmentation & callbacks
 │   └── predict_mobilenetLSTM.py   # Real-time inference (desktop)
+│   └── one_click/                  # One-click config/ingestion/processing orchestration
 ├── model/
 │   ├── shape_predictor_68_face_landmarks.dat  # Dlib landmark model (via Git LFS)
 │   └── word_labels.npy             # Vocabulary labels
@@ -206,6 +209,51 @@ Trains with Adam optimizer, data augmentation, early stopping, and model checkpo
 ```sh
 python src/train_mobilenet_LSTM.py
 ```
+
+### 3b. One-Click Training (Folder -> Processing -> Train)
+Run the full workflow with a single command:
+```sh
+python scripts/train_one_click.py --data_dir data
+```
+
+Supported input folder layouts:
+```text
+# Layout A (processed)
+data/<label>/*.npy
+
+# Layout B (takes with frames)
+data/<label>/<take_name>/*.png|jpg|jpeg|bmp
+
+# Layout C (class media files)
+data/<label>/*.mp4|avi|mov|mkv|png|jpg|jpeg|bmp
+```
+
+Preset profiles:
+- `quick`: fast sanity run (few epochs)
+- `default`: balanced baseline
+- `high_quality`: longer, more detailed run
+
+Examples:
+```sh
+# Dry-run: validate dataset and print planned actions only
+python scripts/train_one_click.py --data_dir data --dry_run
+
+# High-quality preset + debug logs
+python scripts/train_one_click.py --data_dir data --preset high_quality --log_level DEBUG
+
+# Custom override precedence: defaults < preset < config file < CLI
+python scripts/train_one_click.py --data_dir data --preset quick --config_file config/train.json --epochs 30
+```
+
+Logs and metadata:
+- Timestamped log file: `artifacts/logs/train_one_click_<timestamp>.log`
+- Effective config: `artifacts/effective_config.json`
+- Run metadata and stage summary: `artifacts/run_metadata.json`
+
+Troubleshooting:
+- `Class '<name>' has no valid files`: verify label folders contain supported files.
+- `Unreadable image/video`: remove corrupt files; they are skipped and logged.
+- For full stack traces, rerun with `--log_level DEBUG` and inspect the run log file.
 
 ### 4. Live Prediction (Desktop)
 Real-time inference using full Dlib landmark detection:
