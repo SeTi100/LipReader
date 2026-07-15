@@ -161,7 +161,7 @@ LipReader/
 
 ```sh
 git lfs install
-git clone https://github.com/Mooosiee/LipReader.git
+git clone https://github.com/SeTi100/LipReader.git
 cd LipReader
 ```
 
