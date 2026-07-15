@@ -6,6 +6,7 @@ import json
 import sys
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any, Dict
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = REPO_ROOT / "src"
@@ -13,7 +14,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from one_click.config import resolve_config
-from one_click.orchestrator import run_one_click_training
+from one_click.orchestrator import ConfigError, TrainingError, ValidationError, run_one_click_training
 
 
 def parse_args() -> argparse.Namespace:
@@ -29,7 +30,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--log_level", default=None, choices=["INFO", "DEBUG"], help="Console/file log level")
     parser.add_argument("--disable_processing", action="store_true", help="Skip preprocessing pipeline")
     parser.add_argument("--no_cache_processed", action="store_true", help="Disable processed output cache")
+    parser.add_argument("--json-errors", action="store_true", help="Emit structured JSON errors to stderr")
     return parser.parse_args()
+
+
+def _emit_error(error_class: str, message: str, details: Dict[str, Any], json_errors: bool) -> None:
+    if json_errors:
+        payload = {
+            "status": "failed",
+            "error_class": error_class,
+            "message": message,
+            "details": details,
+        }
+        print(json.dumps(payload, sort_keys=True), file=sys.stderr)
+    else:
+        print(f"ERROR [{error_class}]: {message}", file=sys.stderr)
 
 
 def main() -> int:
@@ -48,15 +63,27 @@ def main() -> int:
         "cache_processed": False if args.no_cache_processed else None,
     }
     try:
-        cfg = resolve_config(cli_overrides)
+        try:
+            cfg = resolve_config(cli_overrides)
+        except Exception as exc:
+            raise ConfigError(str(exc)) from exc
         print("Resolved configuration:")
         print(json.dumps(asdict(cfg), indent=2, sort_keys=True))
         result = run_one_click_training(cfg)
         print("\nRun completed:")
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
+    except ConfigError as exc:
+        _emit_error("ConfigError", str(exc), {}, args.json_errors)
+        return 2
+    except ValidationError as exc:
+        _emit_error("ValidationError", str(exc), {}, args.json_errors)
+        return 3
+    except TrainingError as exc:
+        _emit_error("TrainingError", str(exc), {}, args.json_errors)
+        return 4
     except Exception as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
+        _emit_error("SystemError", str(exc), {}, args.json_errors)
         return 1
 
 

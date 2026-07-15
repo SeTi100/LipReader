@@ -85,8 +85,8 @@ def resolve_config(cli_overrides: Dict[str, Any]) -> OneClickConfig:
     """
     base = asdict(OneClickConfig(data_dir=cli_overrides.get("data_dir", "")))
     cleaned_cli = _clean_cli_overrides(cli_overrides)
-    preset_name = cleaned_cli.get("preset", base["preset"])
     file_values = _read_config_file(cleaned_cli.get("config_file"))
+    preset_name = cleaned_cli.get("preset", file_values.get("preset", base["preset"]))
 
     merged = dict(base)
     merged.update(PRESETS.get(preset_name, {}))

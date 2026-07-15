@@ -58,19 +58,32 @@ def _process_frame(frame: np.ndarray, cfg: OneClickConfig) -> np.ndarray:
 def prepare_processed_dataset(data_dir: Path, processed_dir: Path, layout: str, cfg: OneClickConfig, logger: logging.Logger) -> Path:
     processed_dir.mkdir(parents=True, exist_ok=True)
     logger.info("Processing dataset: layout=%s", layout)
+    failed_samples: List[str] = []
+    total_processed = 0
 
     for class_dir in sorted(p for p in data_dir.iterdir() if p.is_dir()):
         target_class_dir = processed_dir / class_dir.name
         target_class_dir.mkdir(parents=True, exist_ok=True)
+        class_processed = 0
 
         if layout == "processed_npy":
             logger.info("Detected already-processed input for class '%s'; reusing files", class_dir.name)
             for npy_file in sorted(class_dir.glob("*.npy")):
                 out_file = target_class_dir / npy_file.name
                 if out_file.exists() and cfg.cache_processed:
+                    class_processed += 1
+                    total_processed += 1
                     continue
-                array = np.load(npy_file)
-                np.save(out_file, array)
+                try:
+                    array = np.load(npy_file, allow_pickle=False)
+                    np.save(out_file, array)
+                    class_processed += 1
+                    total_processed += 1
+                except (ValueError, OSError) as exc:
+                    logger.exception("Failed loading processed sample: %s", npy_file)
+                    failed_samples.append(f"{npy_file}: {exc}")
+            if class_processed == 0:
+                raise ValueError(f"No usable processed samples found for class '{class_dir.name}'")
             continue
 
         if layout == "class_takes_frames":
@@ -78,21 +91,33 @@ def prepare_processed_dataset(data_dir: Path, processed_dir: Path, layout: str, 
                 out_file = target_class_dir / f"{take_dir.name}.npy"
                 if out_file.exists() and cfg.cache_processed:
                     logger.debug("Skipping cached take: %s", out_file)
+                    class_processed += 1
+                    total_processed += 1
                     continue
                 frame_paths = sorted([f for f in take_dir.iterdir() if f.is_file() and f.suffix.lower() in IMAGE_EXTENSIONS])
                 if not frame_paths:
                     logger.warning("Skipping take without valid frames: %s", take_dir)
                     continue
-                processed = [_process_frame(_load_image(p), cfg) for p in frame_paths[: cfg.target_frames]]
-                while len(processed) < cfg.target_frames:
-                    processed.append(processed[-1].copy())
-                np.save(out_file, np.stack(processed, axis=0))
+                try:
+                    processed = [_process_frame(_load_image(p), cfg) for p in frame_paths[: cfg.target_frames]]
+                    while len(processed) < cfg.target_frames:
+                        processed.append(processed[-1].copy())
+                    np.save(out_file, np.stack(processed, axis=0))
+                    class_processed += 1
+                    total_processed += 1
+                except (ValueError, OSError) as exc:
+                    logger.exception("Failed processing take: %s", take_dir)
+                    failed_samples.append(f"{take_dir}: {exc}")
+            if class_processed == 0:
+                raise ValueError(f"No processed takes produced for class '{class_dir.name}'")
             continue
 
         for media_file in sorted(p for p in class_dir.iterdir() if p.is_file()):
             out_file = target_class_dir / f"{media_file.stem}.npy"
             if out_file.exists() and cfg.cache_processed:
                 logger.debug("Skipping cached sample: %s", out_file)
+                class_processed += 1
+                total_processed += 1
                 continue
             try:
                 if media_file.suffix.lower() in VIDEO_EXTENSIONS:
@@ -105,7 +130,21 @@ def prepare_processed_dataset(data_dir: Path, processed_dir: Path, layout: str, 
                     continue
                 processed_frames = [_process_frame(frame, cfg) for frame in frames]
                 np.save(out_file, np.stack(processed_frames, axis=0))
-            except Exception:
+                class_processed += 1
+                total_processed += 1
+            except (ValueError, OSError) as exc:
                 logger.exception("Failed processing file: %s", media_file)
+                failed_samples.append(f"{media_file}: {exc}")
+        if class_processed == 0:
+            raise ValueError(f"No processable samples found for class '{class_dir.name}'")
+
+    if total_processed == 0:
+        raise ValueError("Processing produced zero samples.")
+    if failed_samples:
+        sample_details = "; ".join(failed_samples[:5])
+        raise ValueError(
+            f"Processing failed for {len(failed_samples)} sample(s). "
+            f"Examples: {sample_details}"
+        )
 
     return processed_dir

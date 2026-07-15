@@ -243,6 +243,9 @@ python scripts/train_one_click.py --data_dir data --preset high_quality --log_le
 
 # Custom override precedence: defaults < preset < config file < CLI
 python scripts/train_one_click.py --data_dir data --preset quick --config_file config/train.json --epochs 30
+
+# Structured JSON errors (CI-friendly)
+python scripts/train_one_click.py --data_dir data --json-errors
 ```
 
 Logs and metadata:
@@ -252,7 +255,7 @@ Logs and metadata:
 
 Troubleshooting:
 - `Class '<name>' has no valid files`: verify label folders contain supported files.
-- `Unreadable image/video`: remove corrupt files; they are skipped and logged.
+- `Processing failed for <N> sample(s)`: inspect examples in terminal/log output, then remove or repair corrupt files.
 - For full stack traces, rerun with `--log_level DEBUG` and inspect the run log file.
 
 ### 4. Live Prediction (Desktop)
