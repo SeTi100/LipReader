@@ -1,8 +1,13 @@
+"""Logging and JSON persistence helpers for one-click training."""
+
 from __future__ import annotations
 
 import json
 import logging
+import os
+import tempfile
 from datetime import datetime, timezone
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any, Dict
 
@@ -22,17 +27,45 @@ def setup_logging(output_dir: Path, level: str) -> tuple[logging.Logger, Path]:
         datefmt="%Y-%m-%dT%H:%M:%S",
     )
 
-    file_handler = logging.FileHandler(log_path, encoding="utf-8")
+    file_handler = RotatingFileHandler(
+        log_path,
+        maxBytes=10 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8",
+    )
+    file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
     stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.INFO)
     stream_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
     logger.addHandler(stream_handler)
 
+    logger.propagate = False
     return logger, log_path
 
 
 def write_json(path: Path, payload: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+    tmp_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            dir=str(path.parent),
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            mode="w",
+            encoding="utf-8",
+        ) as tmp_file:
+            json.dump(payload, tmp_file, indent=2, sort_keys=True)
+            tmp_file.flush()
+            os.fsync(tmp_file.fileno())
+            tmp_name = tmp_file.name
+
+        Path(tmp_name).replace(path)
+    except Exception:
+        if tmp_name is not None:
+            Path(tmp_name).unlink(missing_ok=True)
+        raise
