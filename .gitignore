@@ -11,4 +11,5 @@ venv/
 .venv/
 *.h5
 logs/
+artifacts/
 .DS_Store
